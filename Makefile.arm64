@@ -4,4 +4,8 @@ CCOMMON_OPT += -march=armv8-a
 FCOMMON_OPT += -march=armv8-a
 endif
 
+ifeq ($(CORE), THUNDERX)
+CCOMMON_OPT += -mcpu=thunderx
+FCOMMON_OPT += -mcpu=thunderx
+endif
 

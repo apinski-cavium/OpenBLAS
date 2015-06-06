@@ -26,13 +26,41 @@
   *****************************************************************************/
 
 #include <string.h>
+#ifdef __linux__
+#include <sys/auxv.h>
+#include <elf.h>
+
+#define MIDR_REVISION_MASK	0xf
+#define MIDR_REVISION(midr)	((midr) & MIDR_REVISION_MASK)
+#define MIDR_PARTNUM_SHIFT	4
+#define MIDR_PARTNUM_MASK	(0xfff << MIDR_PARTNUM_SHIFT)
+#define MIDR_PARTNUM(midr)	\
+	(((midr) & MIDR_PARTNUM_MASK) >> MIDR_PARTNUM_SHIFT)
+#define MIDR_ARCHITECTURE_SHIFT	16
+#define MIDR_ARCHITECTURE_MASK	(0xf << MIDR_ARCHITECTURE_SHIFT)
+#define MIDR_ARCHITECTURE(midr)	\
+	(((midr) & MIDR_ARCHITECTURE_MASK) >> MIDR_ARCHITECTURE_SHIFT)
+#define MIDR_VARIANT_SHIFT	20
+#define MIDR_VARIANT_MASK	(0xf << MIDR_VARIANT_SHIFT)
+#define MIDR_VARIANT(midr)	\
+	(((midr) & MIDR_VARIANT_MASK) >> MIDR_VARIANT_SHIFT)
+#define MIDR_IMPLEMENTOR_SHIFT	24
+#define MIDR_IMPLEMENTOR_MASK	(0xff << MIDR_IMPLEMENTOR_SHIFT)
+#define MIDR_IMPLEMENTOR(midr)	\
+	(((midr) & MIDR_IMPLEMENTOR_MASK) >> MIDR_IMPLEMENTOR_SHIFT)
+
+#define IS_THUNDERX(midr) (MIDR_IMPLEMENTOR(midr) == 'C'	\
+			   && MIDR_PARTNUM(midr) == 0x0a1)
+#endif
 
 #define CPU_UNKNOWN     	0
 #define CPU_ARMV8       	1
+#define CPU_THUNDERX       	2
 
 static char *cpuname[] = {
   "UNKOWN",
-  "ARMV8"
+  "ARMV8",
+  "THUNDERX"
 };
 
 
@@ -59,7 +87,7 @@ int get_feature(char *search)
   	fclose(infile);
 
 
-	if( p == NULL ) return;
+	if( p == NULL ) return 0;
 
 	t = strtok(p," ");
 	while( t = strtok(NULL," "))
@@ -76,10 +104,20 @@ int detect(void)
 {
 
 #ifdef linux
+#ifndef AT_ARM64_MIDR
+#define AT_ARM64_MIDR           38
+#endif
 
 	FILE *infile;
   	char buffer[512], *p;
   	p = (char *) NULL ;
+	unsigned long midr;
+
+	midr = getauxval(AT_ARM64_MIDR);
+	if (IS_THUNDERX(midr))
+	{
+		return CPU_THUNDERX;
+	}
 
   	infile = fopen("/proc/cpuinfo", "r");
 
@@ -131,6 +169,10 @@ void get_subarchitecture(void)
 			printf("ARMV8");
 			break;
 
+		case CPU_THUNDERX:
+			printf("THUNDERX");
+			break;
+
 		default:
 			printf("UNKNOWN");
 			break;
@@ -160,6 +202,17 @@ void get_cpuconfig(void)
     			printf("#define L2_ASSOCIATIVE 4\n");
 			break;
 
+		case CPU_THUNDERX:
+    			printf("#define ARMV8\n");
+    			printf("#define THUNDERX\n");
+    			printf("#define L1_DATA_SIZE 32768\n");
+    			printf("#define L1_DATA_LINESIZE 128\n");
+    			printf("#define L2_SIZE 16777216\n");
+    			printf("#define L2_LINESIZE 128\n");
+    			printf("#define DTB_DEFAULT_ENTRIES 64\n");
+    			printf("#define DTB_SIZE 4096\n");
+    			printf("#define L2_ASSOCIATIVE 16\n");
+			break;
 
 	}
 }
@@ -174,6 +227,10 @@ void get_libname(void)
 
 		case CPU_ARMV8:
     			printf("armv8\n");
+			break;
+
+		case CPU_THUNDERX:
+    			printf("thunderx\n");
 			break;
 
 	}
