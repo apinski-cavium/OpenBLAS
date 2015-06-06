@@ -53,6 +53,12 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ASSEMBLER
 #include "common.h"
 
+#if defined(THUNDERX)
+#define CPU_THUNDERX(...) __VA_ARGS__
+#else
+#define CPU_THUNDERX(...)
+#endif
+
 /*                   X0          X1          X2          s0        X3        x4       x5           x6*/
 /*int CNAME(BLASLONG bm,BLASLONG bn,BLASLONG bk,FLOAT alpha,FLOAT* ba,FLOAT* bb,FLOAT* C,BLASLONG ldc*/
 
@@ -69,7 +75,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define counterI x9
 #define pB x10
 #define counterJ x11
-#define tempALPHA x12
+#define tempALPHA w12
 #define pCRow0 x13
 #define pCRow1 x14
 #define pCRow2 x15
@@ -162,7 +168,9 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .macro KERNEL4x4_I
 
         ld1     {v8.2s},[pB],#8
+	CPU_THUNDERX(prfm	PLDL1STRM, [pB, 256])
         ld1     {v10.2s},[pB],#8
+	CPU_THUNDERX(prfm	PLDL1STRM, [pA, 256])
         ld1     {v0.4s},[pA],#16
 
         fmulx   v16.4s, v0.4s, v8.4s[0]
@@ -181,7 +189,9 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .macro KERNEL4x4_M2
 
 	fmla  	v16.4s, v4.4s, v12.s[0]
+	CPU_THUNDERX(prfm	PLDL1STRM, [pA, 256])
 	fmla  	v20.4s, v4.4s, v12.s[1]
+	CPU_THUNDERX(prfm	PLDL1STRM, [pB, 256])
 	fmla 	v24.4s, v4.4s, v14.s[0]
 	fmla  	v28.4s, v4.4s, v14.s[1]
 
@@ -238,26 +248,29 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .macro SAVE4x4
 
 	add	pCRow1, pCRow0, LDC    // create a second row pointer from the first row pointer
-	mov	v0.d[0], tempALPHA
+	dup	v0.4s, tempALPHA
 
         ld1     {v8.4s},[pCRow0]   // load 4 values of C from first row
-        fmla     v8.4s ,v16.4s,v0.s[0]
-	st1 	{v8.4s},[pCRow0],#16 // store C from first row
+	CPU_THUNDERX(prfm	PLDL1STRM, [pCRow0, 256])
 
         ld1     {v12.4s},[pCRow1]   // load 4 values of C from second row
-        fmla     v12.4s ,v20.4s,v0.s[0]
+        fmla     v8.4s ,v16.4s,v0.4s
+        fmla     v12.4s ,v20.4s,v0.4s
+	st1 	{v8.4s},[pCRow0],#16 // store C from first row
 	st1 	{v12.4s},[pCRow1] // store C from second row
 
 	add	pCRow2, pCRow1, LDC        // Row2 points to third row 
 
         ld1     {v8.4s},[pCRow2]   // load 4 values of C from third row
-        fmla     v8.4s ,v24.4s,v0.s[0]
-	st1 	{v8.4s} ,[pCRow2]  // store C from third row
+	CPU_THUNDERX(prfm	PLDL1STRM, [pCRow2, 256])
 
 	add	pCRow1, pCRow2 , LDC // row1 points to fourth row
 
         ld1     {v12.4s},[pCRow1]   // load 4 values of C from fourth row
-        fmla     v12.4s ,v28.4s,v0.s[0]
+	CPU_THUNDERX(prfm	PLDL1STRM, [pCRow1, 256])
+        fmla     v8.4s ,v24.4s,v0.4s
+        fmla     v12.4s ,v28.4s,v0.4s
+	st1 	{v8.4s} ,[pCRow2]  // store C from third row
 	st1     {v12.4s},[pCRow1]  // store fourth row
 
 .endm
@@ -312,7 +325,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 	add	pCRow1 , pCRow0, LDC
 	add	pCRow2  , pCRow1, LDC
-	mov	v0.d[0], tempALPHA
+	fmov	s0, tempALPHA
 
 	L1ST (	s8,pCRow0, #0)
 	L1ST (	s9,pCRow0, #4 )
@@ -394,7 +407,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	add	pCRow1 , pCRow0, LDC
 	add	pCRow2  , pCRow1, LDC
 
-	mov	v0.d[0], tempALPHA
+	fmov	s0, tempALPHA
 
 	L1ST (	s8,pCRow0, #0)
 	F1ST ( 	s8 , s0 , s16)
@@ -465,7 +478,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 	add	pCRow1 , pCRow0, LDC
 
-	mov	v0.d[0], tempALPHA
+	fmov	s0, tempALPHA
 
 	L1ST (	s8,pCRow0, #0)
 	L1ST (	s9,pCRow0, #4 )
@@ -538,7 +551,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 	add	pCRow1 , pCRow0, LDC
 
-	mov	v0.d[0], tempALPHA
+	fmov	s0, tempALPHA
 
 	L1ST (	s8,pCRow0, #0 )
 	L1ST (	s9,pCRow0, #4 )
@@ -591,7 +604,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 	add	pCRow1 , pCRow0, LDC
 
-	mov	v0.d[0], tempALPHA
+	fmov	s0, tempALPHA
 
 	L1ST (	s8,pCRow0, #0)
 	F1ST ( 	s8 , s0 , s16)
@@ -641,7 +654,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .macro SAVE4x1
 
 
-	mov	v0.d[0], tempALPHA
+	fmov	s0, tempALPHA
 
 	L1ST (	s8,pCRow0, #0 )
 	L1ST (	s9,pCRow0, #4 )
@@ -694,7 +707,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .macro SAVE2x1
 
 
-	mov	v0.d[0], tempALPHA
+	fmov	s0, tempALPHA
 
 	L1ST (	s8,pCRow0, #0 )
 	L1ST (	s9,pCRow0, #4 )
@@ -735,7 +748,7 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .macro SAVE1x1
 
 
-	mov	v0.d[0], tempALPHA
+	fmov	s0, tempALPHA
 
 	L1ST (	s8,pCRow0, #0 )
 	F1ST ( 	s8 , s0 , s16)
@@ -763,7 +776,9 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         stp     d14,d15,[sp,#(3*16)]
         stp     d16,d17,[sp,#(4*16)]
 
-        mov     tempALPHA, v0.d[0]
+	CPU_THUNDERX(prfm	PLDL1KEEP, [sp])
+
+        fmov     tempALPHA, s0
 	lsl	LDC, LDC, #2					// ldc = ldc * 4
 
 	mov	pB, origPB
