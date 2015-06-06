@@ -43,6 +43,12 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef ASSEMBLER
 
+#ifdef __LP64__
+#define LONG_MOD "x"
+#else
+#define LONG_MOD "w"
+#endif
+
 static void __inline blas_lock(volatile BLASULONG *address){
 
   int register ret;
@@ -52,15 +58,15 @@ static void __inline blas_lock(volatile BLASULONG *address){
 
     __asm__ __volatile__(
                          "1:                                                            \n\t"
-                         "ldrex r2, [%1]                                                \n\t"
-                         "mov   r2, #0                                                  \n\t"
-                         "strex r3, r2, [%1]                                            \n\t"
-                         "cmp   r3, #0                                                  \n\t"
-                         "bne   1b                                                      \n\t"
-                         "mov   %0 , r3                                                 \n\t"
+                         "ldaxr " LONG_MOD "2, [%1]                                     \n\t"
+                         "mov   w2, #0                                                  \n\t"
+                         "stxr  w3, " LONG_MOD "2, [%1]                                 \n\t"
+                         "cmp   w3, #0                                                  \n\t"
+                         "b.ne   1b                                                     \n\t"
+                         "mov   %w0 , w3                                                \n\t"
                          : "=r"(ret), "=r"(address)
                          : "1"(address)
-                         : "memory", "r2" , "r3"
+                         : "memory", "w2" , "w3"
 
 
     );
