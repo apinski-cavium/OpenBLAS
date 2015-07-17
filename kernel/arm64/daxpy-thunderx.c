@@ -29,8 +29,8 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common.h"
 #include <arm_neon.h>
 
-//#define prefetch(a) __asm__("prfm PLDL1STRM, [%0]"::"r"(a):"memory");
-#define prefetch(a)
+#define prefetch(a) __asm__("prfm PLDL1STRM, [%0]"::"r"(a):"memory");
+//#define prefetch(a)
 
 static void daxpy_kernel_8(BLASLONG n, FLOAT *x, FLOAT *y, FLOAT *alpha)
 {
