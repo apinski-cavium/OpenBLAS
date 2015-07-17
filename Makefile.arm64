@@ -5,7 +5,9 @@ FCOMMON_OPT += -march=armv8-a
 endif
 
 ifeq ($(CORE), THUNDERX)
-MYOPTS = -mcpu=cortex-a53 -funroll-loops
+MYOPTS = -mcpu=cortex-a53
+#MYOPTS = -mcpu=thunderx
+# -funroll-loops
 CCOMMON_OPT += $(MYOPTS)
 FCOMMON_OPT += $(MYOPTS)
 endif
